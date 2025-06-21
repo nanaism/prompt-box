@@ -6,9 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "opennext:build": "open-next build --skip-image-optimization",
-    "deploy": "npm run opennext:build && wrangler pages deploy .open-next"
+    "lint": "next lint"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
