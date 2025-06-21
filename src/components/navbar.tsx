@@ -32,7 +32,7 @@ export default function Navbar() {
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2">
             <Boxes className="w-8 h-8 text-violet-600" />
-            <span className="font-bold text-xl">Prompt Box</span>
+            <span className="font-bold text-2xl font-sans">Prompt Box</span>
           </Link>
         </div>
 
