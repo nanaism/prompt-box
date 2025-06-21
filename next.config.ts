@@ -4,6 +4,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   pageExtensions: ["tsx", "ts", "jsx", "js", "mdx", "md"],
+  images: {
+    unoptimized: true,
+  },
 };
 
 const withMDX = createMDX({
