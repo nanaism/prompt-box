@@ -2,7 +2,5 @@ name = "prompt-box"
 compatibility_date = "2024-06-21"
 
 [pages]
-# デプロイする成果物が入っているディレクトリを指定
 pages_build_output_dir = ".open-next"
-# そのディレクトリを基準とした、サイトの入り口となるファイルを指定
 main = "_worker.js"
