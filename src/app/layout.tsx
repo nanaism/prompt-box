@@ -24,11 +24,10 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-1">{children}</main>
           <footer className="py-6 border-t border-zinc-100 dark:border-zinc-800">
-            <div className="container mx-auto flex items-center justify-between">
+            <div className="container mx-auto flex items-center justify-center">
               <p className="text-sm text-zinc-500">
-                © {new Date().getFullYear()} Prompt Box
+                © {new Date().getFullYear()} Oga Aiichiro
               </p>
-              <p className="text-sm text-zinc-500">Built with Next.js</p>
             </div>
           </footer>
         </div>

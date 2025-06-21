@@ -4,24 +4,34 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Frontmatter, SavedPromptData } from "@/lib/markdown/types";
 import { cn } from "@/lib/utils";
-import { Clipboard, Star } from "lucide-react";
+import { Clipboard, Star, Trash2 } from "lucide-react"; // Trash2アイコンをインポート
 import { EvaluateResult } from "next-mdx-remote-client/rsc";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
+// AlertDialogコンポーネントをインポート
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface SavedPromptClientProps {
-  // コンパイル済みの表示用データ
   mdxResult: EvaluateResult<Frontmatter>;
   promptId: string;
-  // コピー用のコンパイル前のデータ
   promptData: SavedPromptData;
 }
 
 /**
  * 保存済みプロンプトの詳細表示・操作コンポーネント
  *
- * MDXコンテンツの表示、評価の変更、コピー機能などを提供します。
+ * MDXコンテンツの表示、評価の変更、コピー、削除機能などを提供します。
  * クライアントサイドでの状態管理とAPI通信を担当します。
  */
 export default function SavedPromptClient({
@@ -35,28 +45,21 @@ export default function SavedPromptClient({
   );
   const [displayFrontmatter, setDisplayFrontmatter] =
     useState<Frontmatter>(initialFrontmatter);
+  const [isDeleting, setIsDeleting] = useState(false); // 削除処理中の状態を追加
   const [, startTransition] = useTransition();
   const router = useRouter();
 
-  // プロパティが変更された際の状態同期
   useEffect(() => {
     setDisplayFrontmatter(initialFrontmatter);
     setCurrentRating(initialFrontmatter.rating);
   }, [initialFrontmatter]);
 
-  /**
-   * 評価の変更処理
-   *
-   * 楽観的更新を行い、API呼び出しが失敗した場合は元の状態に戻します。
-   */
   const handleRatingChange = async (newRating: number) => {
+    // ... (既存のコードは変更なし)
     if (newRating === currentRating) return;
     const oldRating = currentRating;
-
-    // 楽観的更新: UIを先に更新
     setCurrentRating(newRating);
     setDisplayFrontmatter((prev) => ({ ...prev, rating: newRating }));
-
     try {
       const response = await fetch("/api/update-rating", {
         method: "POST",
@@ -67,24 +70,18 @@ export default function SavedPromptClient({
         const errorData = await response.json();
         throw new Error(errorData.message || "評価の更新に失敗しました。");
       }
-
       const result = await response.json();
-
       if (result.isPreview) {
         toast.success("プレビュー評価更新", {
-          description:
-            "このデモでは実際のファイル更新は行われません。ローカル環境では完全に動作します。",
+          description: "このデモでは実際のファイル更新は行われません。",
         });
       } else {
         toast.success("評価を更新しました。");
       }
-
-      // ページデータを再取得してサーバー状態と同期
       startTransition(() => {
         router.refresh();
       });
     } catch (error: unknown) {
-      // エラー時は元の状態に戻す
       setCurrentRating(oldRating);
       setDisplayFrontmatter((prev) => ({ ...prev, rating: oldRating }));
       if (error instanceof Error) {
@@ -102,7 +99,59 @@ export default function SavedPromptClient({
     toast.success("クリップボードにコピーしました");
   };
 
-  // MDXレンダリング失敗時のフォールバックコンポーネント
+  /**
+   * プロンプトの削除処理
+   *
+   * 確認ダイアログで承認後、APIを呼び出してファイルを削除します。
+   * 成功後は保存済みプロンプト一覧ページにリダイレクトします。
+   */
+  const handleDeletePrompt = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch("/api/delete-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: promptId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "プロンプトの削除に失敗しました。");
+      }
+
+      if (result.isPreview) {
+        toast.info("プレビューモード", {
+          description: result.message,
+        });
+        // プレビューモードではリダイレクトしない
+        return;
+      }
+
+      toast.success("プロンプトを削除しました。");
+
+      // 削除が成功したら、一覧ページに遷移する
+      // このページ遷移により、一覧ページがサーバーで再レンダリングされ、
+      // 最新のデータ（削除後のプロンプト一覧）が表示される
+      router.push("/saved");
+
+      // pushの後にrefreshを呼ぶことで、ブラウザのキャッシュを確実にクリアできますが、
+      // このシナリオではpushだけで十分な場合が多いです。
+      // もし一覧に戻ってもデータが古い場合のみ、以下の行を有効にしてください。
+      // router.refresh();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error("削除エラー", { description: error.message });
+      } else {
+        toast.error("削除エラー", {
+          description: "不明なエラーが発生しました。",
+        });
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const FallbackComponent = () => (
     <div className="text-red-600">
       MDX Content rendering failed. Check console log in server component.
@@ -112,8 +161,8 @@ export default function SavedPromptClient({
   const mdxError = mdxResult?.error;
   const mdxFrontmatter = mdxResult?.frontmatter;
 
-  // MDXエラーがある場合はエラー表示
   if (mdxError) {
+    // ... (既存のコードは変更なし)
     return (
       <div className="text-red-500 p-4 border border-red-500 rounded-md">
         <h3>MDXコンテンツの表示エラー</h3>
@@ -127,8 +176,9 @@ export default function SavedPromptClient({
 
   return (
     <div className="space-y-6">
-      {/* ヘッダー部分: タイトルと戻るリンク */}
+      {/* ヘッダー部分 */}
       <div className="flex items-center justify-between">
+        {/* ... (既存のコードは変更なし) */}
         <div>
           <h1 className="text-3xl font-bold">
             {displayFrontmatter.title ||
@@ -153,7 +203,7 @@ export default function SavedPromptClient({
         <div className="bg-white dark:bg-zinc-950 p-6">
           {/* プロンプト内容ヘッダーと星評価 */}
           <div className="flex items-center justify-between mb-4">
-            {/* アクションボタン */}
+            {/* アクションボタン群 */}
             <div className="flex items-center justify-end gap-2">
               <Button
                 variant="outline"
@@ -164,7 +214,45 @@ export default function SavedPromptClient({
                 <Clipboard className="h-4 w-4 mr-2" />
                 コピー
               </Button>
+
+              {/* === ここからが追加部分 === */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="rounded-full"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    削除
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>本当に削除しますか？</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      この操作は元に戻せません。プロンプト「
+                      {displayFrontmatter.title}
+                      」がサーバーから完全に削除されます。
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>
+                      キャンセル
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeletePrompt}
+                      disabled={isDeleting}
+                      className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
+                    >
+                      {isDeleting ? "削除中..." : "削除する"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              {/* === ここまでが追加部分 === */}
             </div>
+
             {/* 星評価 */}
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((starValue) => (

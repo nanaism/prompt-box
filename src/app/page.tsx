@@ -73,7 +73,7 @@ export default function HomePage() {
                       <div className="flex items-center gap-2">
                         <div className="text-sm font-medium">url:</div>
                         <div className="flex-1 bg-white rounded border border-zinc-200 px-2 py-1 text-sm">
-                          https://react-road.b13o.com
+                          https://qiita.com/oga_aiichiro
                         </div>
                       </div>
                     </div>
