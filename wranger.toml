@@ -2,4 +2,4 @@ name = "prompt-box"
 compatibility_date = "2024-06-21"
 
 [pages]
-main = ".open-next/_worker.js"
+main = "_worker.js"
