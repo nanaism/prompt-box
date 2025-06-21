@@ -2,17 +2,13 @@
   "name": "prompt-box",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "start": "next start",
-    "lint": "next lint",
-    "opennext:build": "open-next build --skip-image-optimization",
-    "deploy": "npm run opennext:build && wrangler pages deploy .open-next/outputs --project-name=prompt-box"
-  },
+"scripts": {
+  "dev": "next dev --turbopack",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint",
+  "build:local": "open-next build --skip-image-optimization"
+},
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
     "@mdx-js/loader": "^3.1.0",
