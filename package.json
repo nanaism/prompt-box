@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "opennext:build": "open-next build --skip-image-optimization",
-    "deploy": "npm run opennext:build && wrangler pages deploy .open-next"
+    "deploy": "npm run opennext:build && wrangler pages deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
