@@ -5,8 +5,10 @@ import { getTemplatesMetadata } from "@/lib/markdown/templates";
 import { Copy, Save } from "lucide-react";
 import Link from "next/link";
 
-export default function HomePage() {
-  const templates = getTemplatesMetadata();
+// ★ 修正点1: コンポーネントを `async` 関数にする
+export default async function HomePage() {
+  // ★ 修正点2: await を使って Promise の結果（配列）を待つ
+  const templates = await getTemplatesMetadata();
 
   return (
     <div className="flex flex-col">
@@ -114,6 +116,7 @@ export default function HomePage() {
             日々改善されていく、おすすめテンプレート集。
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* この部分はもうエラーにならないはず！ */}
             {templates.slice(0, 6).map((template) => (
               <TemplateCard key={template.id} template={template} />
             ))}

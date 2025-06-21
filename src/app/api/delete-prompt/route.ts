@@ -1,10 +1,9 @@
-import fs from "fs/promises";
+import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import path from "path";
 
 export async function POST(request: Request) {
-  // デモ環境でのファイル削除を防ぐためのガード
-  if (process.env.IS_PREVIEW) {
+  if (process.env.VERCEL_ENV === "preview") {
     return NextResponse.json(
       {
         success: true,
@@ -15,9 +14,11 @@ export async function POST(request: Request) {
     );
   }
 
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+
   try {
-    const body = await request.json();
-    const { id } = body;
+    const { id } = await request.json();
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
@@ -26,41 +27,23 @@ export async function POST(request: Request) {
       );
     }
 
-    // ファイル名のサニタイズ (基本的なパス トラバーサル攻撃を防ぐ)
-    if (id.includes("/") || id.includes("..")) {
+    const { error } = await supabase.from("prompts").delete().eq("id", id);
+
+    if (error) {
+      console.error("プロンプトの削除中にエラーが発生しました:", error);
+      // エラーの種類によってレスポンスを分けることも可能
       return NextResponse.json(
-        { success: false, message: "不正なファイル名です。" },
-        { status: 400 }
+        { success: false, message: "データベースエラーが発生しました。" },
+        { status: 500 }
       );
     }
-
-    const filePath = path.join(process.cwd(), "_data", "saved", `${id}.md`);
-
-    // ファイルの存在を確認してから削除
-    await fs.unlink(filePath);
 
     return NextResponse.json(
       { success: true, message: "プロンプトが正常に削除されました。" },
       { status: 200 }
     );
   } catch (error) {
-    // ★ 修正点1: `any`を削除。これでerrorは `unknown` 型になります。
-    console.error("プロンプトの削除中にエラーが発生しました:", error);
-
-    // ★ 修正点2: 型ガードを追加
-    // errorがオブジェクトであり、'code'プロパティを持ち、その値が'ENOENT'か安全にチェックします。
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      error.code === "ENOENT"
-    ) {
-      return NextResponse.json(
-        { success: false, message: "指定されたプロンプトが見つかりません。" },
-        { status: 404 }
-      );
-    }
-
+    console.error("リクエスト処理中にエラーが発生しました:", error);
     return NextResponse.json(
       { success: false, message: "サーバーエラーが発生しました。" },
       { status: 500 }

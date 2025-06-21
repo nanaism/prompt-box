@@ -9,7 +9,8 @@ import TemplateClientView from "./_components/template-client-view";
  * パラメータリストを返します。これによりSSGが有効になります。
  */
 export async function generateStaticParams() {
-  const ids = getTemplateIds();
+  // ★ 修正点1: await を追加して Promise の解決を待つ
+  const ids = await getTemplateIds();
   return ids.map((id) => ({ id }));
 }
 
@@ -19,13 +20,16 @@ export async function generateStaticParams() {
  * 指定されたIDのテンプレートデータを取得し、クライアントコンポーネントに渡します。
  * テンプレートが見つからない場合は、404エラーを表示します。
  */
+// ★ 修正点2: params の型を修正
 export default async function TemplatePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = await params;
-  const templateData = getTemplateData(id);
+  // ★ 修正点3: params は Promise ではないので await は不要
+  const id = params.id;
+  // ★ 修正点4: await を追加して Promise の解決を待つ
+  const templateData = await getTemplateData(id);
 
   if (!templateData) {
     notFound();

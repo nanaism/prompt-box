@@ -2,13 +2,13 @@ import type { Frontmatter } from "@/lib/markdown/types";
 import { evaluate, type EvaluateResult } from "next-mdx-remote-client/rsc";
 import { notFound } from "next/navigation";
 import remarkGfm from "remark-gfm";
-import { getSavedPromptRawContent } from "./saved-prompts";
+// ★ 修正点1: fsに依存する関数は使わない。代わりにDBからデータを取得する関数をインポート
+import { getSavedPromptData } from "./saved-prompts";
+// ★ 修正点2: frontmatterを文字列に戻すためにgray-matterをインポート
+import matter from "gray-matter";
 
 /**
  * MDXコンテンツをコンパイルしてReactコンポーネントに変換
- *
- * MDX文字列とフロントマターを受け取り、next-mdx-remote-clientを使用して
- * 評価可能な形式に変換します。remarkプラグインによる拡張機能も適用されます。
  *
  * @param id プロンプトID
  * @returns コンパイル済みMDXの結果
@@ -16,12 +16,18 @@ import { getSavedPromptRawContent } from "./saved-prompts";
 export async function compileMdx(
   id: string
 ): Promise<EvaluateResult<Frontmatter>> {
-  // idに一致する、保存されたプロンプトデータを取得
-  const sourceToCompile = await getSavedPromptRawContent(id);
+  // ★ 修正点3: DBからプロンプトデータを取得
+  const promptData = await getSavedPromptData(id);
 
-  if (!sourceToCompile) {
+  if (!promptData) {
     notFound();
   }
+
+  // ★ 修正点4: `evaluate` に渡すため、frontmatterとcontentを結合して単一の文字列に戻す
+  const sourceToCompile = matter.stringify(
+    promptData.content,
+    promptData.frontmatter
+  );
 
   try {
     // MDXソースを評価してReactコンポーネントに変換
@@ -35,13 +41,11 @@ export async function compileMdx(
       },
     });
 
-    // MDX評価は成功したが内部エラーが発生した場合の警告
     if (result.error) {
       console.warn("MDX evaluation resulted in an error:", result.error);
     }
     return result;
   } catch (error) {
-    // 評価プロセス自体で発生した重大なエラーをハンドリング
     console.error("Critical error during MDX evaluation process:", error);
     const evalError =
       error instanceof Error

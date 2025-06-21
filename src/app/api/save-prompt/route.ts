@@ -1,49 +1,52 @@
-import fs from "fs";
+import { createClient } from "@/lib/supabase/server";
+import matter from "gray-matter";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import path from "path";
 
-/**
- * プロンプトをMarkdownファイルとして保存する
- *
- * @param request - リクエストボディに filename と content を含む
- * @returns 保存結果のレスポンス
- */
 export async function POST(request: Request) {
-  try {
-    const { filename, content } = await request.json();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
 
-    // 必須パラメータの検証
-    if (!filename || !content) {
+  try {
+    const { content } = await request.json();
+
+    if (!content) {
       return NextResponse.json(
-        { message: "Filename and content are required" },
+        { message: "Content is required" },
         { status: 400 }
       );
     }
 
-    // 本番環境ではプレビューモードとして動作
-    if (process.env.NODE_ENV === "production") {
+    // gray-matterでフロントマターと本文をパース
+    // dataが SavedPromptFrontmatter 型と互換性があることを期待
+    const { data: frontmatter, content: mdxContent } = matter(content);
+
+    // ★ `templateId` が存在するかチェック
+    if (!frontmatter.title || !frontmatter.templateId) {
       return NextResponse.json(
-        {
-          message: "プレビュー環境のため、実際の保存は行われませんでした",
-          isPreview: true,
-        },
-        { status: 200 }
+        { message: "Title and templateId in frontmatter are required" },
+        { status: 400 }
       );
     }
 
-    // 保存ディレクトリの確保（存在しない場合は作成）
-    const savedDirectory = path.join(process.cwd(), "_data/saved");
-    if (!fs.existsSync(savedDirectory)) {
-      fs.mkdirSync(savedDirectory, { recursive: true });
-    }
+    // Supabaseのpromptsテーブルにデータを挿入
+    const { error } = await supabase.from("prompts").insert({
+      title: frontmatter.title,
+      created_at: frontmatter.createdAt || new Date().toISOString(),
+      rating: frontmatter.rating || null,
+      content: mdxContent,
+      // ★ `templateId` を `template_id` カラムに保存
+      template_id: frontmatter.templateId,
+    });
 
-    // ファイルの書き込み（.md拡張子を付与）
-    const filePath = path.join(savedDirectory, `${filename}.md`);
-    fs.writeFileSync(filePath, content);
+    if (error) {
+      console.error("Error saving prompt to Supabase:", error);
+      throw error;
+    }
 
     return NextResponse.json(
       { message: "Prompt saved successfully" },
-      { status: 200 }
+      { status: 201 }
     );
   } catch (error) {
     console.error("Error saving prompt:", error);

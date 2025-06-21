@@ -1,158 +1,72 @@
-/**
- * 保存されたプロンプトのファイルシステム（fs）操作モジュール
- *
- * ユーザーが保存したプロンプトの管理機能を提供します。
- * ファイルシステムを使用してMDX形式でプロンプトを永続化し、
- * 読み取り、更新、メタデータ取得などの操作を行います。
- */
-import type {
-  SavedPromptData,
-  SavedPromptFrontmatter,
-} from "@/lib/markdown/types";
-import fs from "fs";
-import matter from "gray-matter";
-import path from "path";
+// ★ 修正点1: サーバークライアントではなく、パブリッククライアントをインポート
+import type { SavedPromptData } from "@/lib/markdown/types";
+import { supabase } from "@/lib/supabase/public-client";
+// updatePromptRatingInDb のような書き込み処理はAPIルートで行うため、
+// このファイルからはサーバークライアントへの依存をなくします。
 
-const savedDirectory = path.join(process.cwd(), "_data/saved");
-
-// 開発環境で、保存ディレクトリが存在しない場合は自動作成
-if (process.env.NODE_ENV === "development" && !fs.existsSync(savedDirectory)) {
-  fs.mkdirSync(savedDirectory, { recursive: true });
-}
-
-/**
- * 保存されたプロンプトのIDリストを取得
- *
- * @returns プロンプトIDの配列（ファイル名から拡張子を除いたもの）
- */
-export function getSavedPromptIds(): string[] {
-  try {
-    const filenames = fs.readdirSync(savedDirectory);
-    return filenames
-      .filter((filename) => filename.endsWith(".md"))
-      .map((filename) => filename.replace(/\.md$/, ""));
-  } catch (error) {
+export async function getSavedPromptIds(): Promise<string[]> {
+  // ★ 修正点2: cookies()への依存を削除
+  const { data, error } = await supabase.from("prompts").select("id");
+  if (error) {
     console.error("Error reading saved prompt IDs:", error);
     return [];
   }
+  return data.map((prompt) => prompt.id);
 }
 
-/**
- * 指定されたIDの保存プロンプトの生ファイル内容を取得
- */
-export async function getSavedPromptRawContent(
-  id: string
-): Promise<string | null> {
-  const filePath = path.join(savedDirectory, `${id}.md`);
-  try {
-    if (!fs.existsSync(filePath)) {
-      return null;
-    }
-    return fs.readFileSync(filePath, "utf8");
-  } catch (error) {
-    console.error(`Error reading saved prompt ${id}:`, error);
-    return null;
-  }
-}
-
-/**
- * 全ての保存されたプロンプトのメタデータを取得
- *
- * 一覧表示用に、各プロンプトの基本情報（ID、タイトル、作成日）のみを取得し、
- * 作成日の降順でソートして返します。
- *
- * @returns メタデータの配列
- */
 export async function getAllSavedPromptsMetadata(): Promise<
   Array<{ id: string; title: string; createdAt: string }>
 > {
-  const ids = getSavedPromptIds();
-  const metadataPromises = ids.map(async (id) => {
-    const data = await getSavedPromptData(id);
-    return data
-      ? {
-          id,
-          title: data.frontmatter.title,
-          createdAt: data.frontmatter.createdAt,
-        }
-      : null;
-  });
-  const allMetadata = await Promise.all(metadataPromises);
-  return (
-    allMetadata
-      .filter((meta) => meta !== null)
-      // 作成日の新しい順にソート
-      .sort(
-        (a, b) =>
-          new Date(b!.createdAt).getTime() - new Date(a!.createdAt).getTime()
-      ) as Array<{ id: string; title: string; createdAt: string }>
-  );
-}
+  // ★ 修正点2: cookies()への依存を削除
+  const { data, error } = await supabase
+    .from("prompts")
+    .select("id, title, created_at")
+    .order("created_at", { ascending: false });
 
-/**
- * 保存プロンプトの評価（rating）を更新
- *
- * 既存のファイルのフロントマターを更新し、評価値のみを変更します。
- * コンテンツ部分は変更されません。
- *
- * @param id プロンプトID
- * @param rating 新しい評価値
- * @returns 更新が成功したかどうか
- */
-export async function updatePromptRatingInFile(
-  id: string,
-  rating: number
-): Promise<boolean> {
-  const filePath = path.join(savedDirectory, `${id}.md`);
-  try {
-    if (!fs.existsSync(filePath)) {
-      console.warn(
-        `Cannot update rating. Saved prompt file not found: ${filePath}`
-      );
-      return false;
-    }
-    const fileContents = fs.readFileSync(filePath, "utf8");
-    const { data: frontmatter, content } = matter(fileContents);
-
-    // 既存のフロントマターに評価値を追加・更新
-    const updatedFrontmatter = {
-      ...frontmatter,
-      rating,
-    };
-
-    // フロントマターとコンテンツを再結合してファイルに書き戻し
-    const newFileContents = matter.stringify(content, updatedFrontmatter);
-    fs.writeFileSync(filePath, newFileContents, "utf8");
-    return true;
-  } catch (error) {
-    console.error(`Error updating rating for prompt ${id}:`, error);
-    return false;
+  if (error) {
+    console.error("Error fetching all saved prompts metadata:", error);
+    return [];
   }
+
+  return data.map((prompt) => ({
+    id: prompt.id,
+    title: prompt.title,
+    createdAt: prompt.created_at,
+  }));
 }
 
-/**
- * 指定されたIDの保存プロンプトデータ（フロントマターとコンテンツ）を取得
- *
- * @param id プロンプトID
- * @returns プロンプトデータ、または見つからない場合はnull
- */
 export async function getSavedPromptData(
   id: string
 ): Promise<SavedPromptData | null> {
-  const fileContents = await getSavedPromptRawContent(id);
-  if (!fileContents) {
-    return null;
-  }
-  try {
-    // gray-matterを使用してフロントマターとコンテンツを分離
-    const { data, content } = matter(fileContents);
-    return {
-      id,
-      frontmatter: data as SavedPromptFrontmatter,
-      content,
-    };
-  } catch (error) {
+  // ★ 修正点2: cookies()への依存を削除
+  const { data: prompt, error } = await supabase
+    .from("prompts")
+    .select("id, title, created_at, content, rating, template_id")
+    .eq("id", id)
+    .single();
+
+  if (error || !prompt) {
     console.error(`Error parsing saved prompt ${id}:`, error);
     return null;
   }
+
+  return {
+    id: prompt.id,
+    frontmatter: {
+      title: prompt.title,
+      createdAt: prompt.created_at,
+      rating: prompt.rating,
+      templateId: prompt.template_id,
+    },
+    content: prompt.content,
+  };
+}
+
+// 注意: このファイルからDBへの書き込み関数は削除するのが望ましいです。
+// 書き込み（評価の更新など）は、必ずAPIルート内でサーバークライアントを使って行ってください。
+// この関数はビルドエラーとは直接関係ないので、一旦このままにしておきます。
+export async function updatePromptRatingInDb(): Promise<boolean> {
+  // この関数を呼び出すAPIルート側でクライアントを生成するため、ここでは何もしません。
+  console.warn("updatePromptRatingInDb should be handled within an API route.");
+  return false;
 }

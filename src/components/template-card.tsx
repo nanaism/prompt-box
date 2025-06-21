@@ -19,19 +19,21 @@ export default function TemplateCard({
         </CardHeader>
         <CardContent className="p-0">
           <div className="p-6 pt-0 space-y-4">
-            <Badge
-              variant="outline"
-              className="rounded-full bg-violet-50 text-violet-600 border-violet-200"
-            >
-              {getCategoryNameJapanese(template.category)}
-            </Badge>
+            {template.category && (
+              <Badge
+                variant="outline"
+                className="rounded-full bg-violet-50 text-violet-600 border-violet-200"
+              >
+                {getCategoryNameJapanese(template.category)}
+              </Badge>
+            )}
             <h3 className="text-xl font-semibold line-clamp-1">
               {template.title}
             </h3>
           </div>
           <div className="border-t border-zinc-100 p-4 flex justify-between items-center">
             <div className="flex flex-wrap gap-1">
-              {template.tags.slice(0, 2).map((tag) => (
+              {template.tags?.slice(0, 2).map((tag) => (
                 <Badge
                   key={tag}
                   variant="secondary"
@@ -40,7 +42,7 @@ export default function TemplateCard({
                   {getTagNameJapanese(tag)}
                 </Badge>
               ))}
-              {template.tags.length > 2 && (
+              {template.tags && template.tags.length > 2 && (
                 <Badge variant="secondary" className="text-xs rounded-full">
                   +{template.tags.length - 2}
                 </Badge>

@@ -24,9 +24,9 @@ export interface TemplateFrontmatter {
   id: string;
   title: string;
   description: string;
-  category: TemplateCategory;
-  emoji: string;
-  tags: string[];
+  category?: TemplateCategory;
+  emoji?: string;
+  tags?: string[];
   variables: TemplateVariable[];
 }
 
