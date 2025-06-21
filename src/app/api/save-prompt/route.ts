@@ -20,16 +20,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // // 本番環境ではプレビューモードとして動作
-    // if (process.env.NODE_ENV === "production") {
-    //   return NextResponse.json(
-    //     {
-    //       message: "プレビュー環境のため、実際の保存は行われませんでした",
-    //       isPreview: true,
-    //     },
-    //     { status: 200 }
-    //   );
-    // }
+    // 本番環境ではプレビューモードとして動作
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        {
+          message: "プレビュー環境のため、実際の保存は行われませんでした",
+          isPreview: true,
+        },
+        { status: 200 }
+      );
+    }
 
     // 保存ディレクトリの確保（存在しない場合は作成）
     const savedDirectory = path.join(process.cwd(), "_data/saved");

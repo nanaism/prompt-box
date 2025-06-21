@@ -19,16 +19,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // // 本番環境ではプレビューモードとして動作
-    // if (process.env.NODE_ENV === "production") {
-    //   return NextResponse.json(
-    //     {
-    //       message: "プレビュー環境のため、実際の更新は行われませんでした",
-    //       isPreview: true,
-    //     },
-    //     { status: 200 }
-    //   );
-    // }
+    // 本番環境ではプレビューモードとして動作
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        {
+          message: "プレビュー環境のため、実際の更新は行われませんでした",
+          isPreview: true,
+        },
+        { status: 200 }
+      );
+    }
 
     const success = await updatePromptRatingInFile(id, rating);
 
