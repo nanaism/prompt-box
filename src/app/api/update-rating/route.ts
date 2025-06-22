@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache"; // revalidatePathをインポート
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -36,6 +37,10 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // ★ 修正点: 評価を更新したページのキャッシュを無効化する
+    // これにより、次にページを訪れた際に最新の評価が反映される
+    revalidatePath(`/saved/${id}`);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {

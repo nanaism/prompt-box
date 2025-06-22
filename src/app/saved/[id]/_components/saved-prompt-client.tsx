@@ -1,15 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import type { Frontmatter, SavedPromptData } from "@/lib/markdown/types";
-import { cn } from "@/lib/utils";
-import { Clipboard, Star, Trash2 } from "lucide-react"; // Trash2アイコンをインポート
-import { EvaluateResult } from "next-mdx-remote-client/rsc";
-import { useRouter } from "next/navigation";
-import { Suspense, useEffect, useState, useTransition } from "react";
-import { toast } from "sonner";
-// AlertDialogコンポーネントをインポート
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +11,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import type { Frontmatter, SavedPromptData } from "@/lib/markdown/types";
+import { cn } from "@/lib/utils";
+import { Check, Clipboard, Star, Trash2 } from "lucide-react";
+import { EvaluateResult } from "next-mdx-remote-client/rsc";
+import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useTransition } from "react";
+import { Toaster, toast } from "sonner";
 
 interface SavedPromptClientProps {
   mdxResult: EvaluateResult<Frontmatter>;
@@ -40,26 +39,31 @@ export default function SavedPromptClient({
   promptData,
 }: SavedPromptClientProps) {
   const { frontmatter: initialFrontmatter } = mdxResult;
+  const router = useRouter();
+
+  // --- 状態管理 ---
   const [currentRating, setCurrentRating] = useState<number | null>(
     initialFrontmatter.rating
   );
   const [displayFrontmatter, setDisplayFrontmatter] =
     useState<Frontmatter>(initialFrontmatter);
-  const [isDeleting, setIsDeleting] = useState(false); // 削除処理中の状態を追加
-  const [, startTransition] = useTransition();
-  const router = useRouter();
+  const [isCopied, setIsCopied] = useState(false);
+  const [isPending, startTransition] = useTransition(); // 削除や更新などの遷移中に使う
 
   useEffect(() => {
     setDisplayFrontmatter(initialFrontmatter);
     setCurrentRating(initialFrontmatter.rating);
-  }, [initialFrontmatter]);
+  }, [initialFrontmatter, promptId]); // promptIdも依存配列に追加すると、ページ遷移時により確実に状態がリセットされる
+
+  // --- イベントハンドラ ---
 
   const handleRatingChange = async (newRating: number) => {
-    // ... (既存のコードは変更なし)
-    if (newRating === currentRating) return;
+    if (newRating === currentRating || isPending) return;
+
     const oldRating = currentRating;
     setCurrentRating(newRating);
     setDisplayFrontmatter((prev) => ({ ...prev, rating: newRating }));
+
     try {
       const response = await fetch("/api/update-rating", {
         method: "POST",
@@ -70,18 +74,9 @@ export default function SavedPromptClient({
         const errorData = await response.json();
         throw new Error(errorData.message || "評価の更新に失敗しました。");
       }
-      const result = await response.json();
-      if (result.isPreview) {
-        toast.success("プレビュー評価更新", {
-          description: "このデモでは実際のファイル更新は行われません。",
-        });
-      } else {
-        toast.success("評価を更新しました。");
-      }
-      startTransition(() => {
-        router.refresh();
-      });
+      toast.success("評価を更新しました。");
     } catch (error: unknown) {
+      // 失敗したらUIを元に戻す
       setCurrentRating(oldRating);
       setDisplayFrontmatter((prev) => ({ ...prev, rating: oldRating }));
       if (error instanceof Error) {
@@ -96,17 +91,12 @@ export default function SavedPromptClient({
 
   const handleCopyPrompt = () => {
     navigator.clipboard.writeText(promptData.content);
+    setIsCopied(true);
     toast.success("クリップボードにコピーしました");
+    setTimeout(() => setIsCopied(false), 2000); // 2秒後にアイコンを元に戻す
   };
 
-  /**
-   * プロンプトの削除処理
-   *
-   * 確認ダイアログで承認後、APIを呼び出してファイルを削除します。
-   * 成功後は保存済みプロンプト一覧ページにリダイレクトします。
-   */
   const handleDeletePrompt = async () => {
-    setIsDeleting(true);
     try {
       const response = await fetch("/api/delete-prompt", {
         method: "POST",
@@ -115,30 +105,18 @@ export default function SavedPromptClient({
       });
 
       const result = await response.json();
-
       if (!response.ok) {
         throw new Error(result.message || "プロンプトの削除に失敗しました。");
       }
 
-      if (result.isPreview) {
-        toast.info("プレビューモード", {
-          description: result.message,
-        });
-        // プレビューモードではリダイレクトしない
-        return;
-      }
-
       toast.success("プロンプトを削除しました。");
 
-      // 削除が成功したら、一覧ページに遷移する
-      // このページ遷移により、一覧ページがサーバーで再レンダリングされ、
-      // 最新のデータ（削除後のプロンプト一覧）が表示される
-      router.push("/saved");
-
-      // pushの後にrefreshを呼ぶことで、ブラウザのキャッシュを確実にクリアできますが、
-      // このシナリオではpushだけで十分な場合が多いです。
-      // もし一覧に戻ってもデータが古い場合のみ、以下の行を有効にしてください。
-      // router.refresh();
+      // サーバーコンポーネントのデータを再取得し、UIをスムーズに更新
+      startTransition(() => {
+        router.refresh();
+        // 削除後は一覧のトップページに戻す
+        router.push("/saved");
+      });
     } catch (error: unknown) {
       if (error instanceof Error) {
         toast.error("削除エラー", { description: error.message });
@@ -147,28 +125,24 @@ export default function SavedPromptClient({
           description: "不明なエラーが発生しました。",
         });
       }
-    } finally {
-      setIsDeleting(false);
     }
   };
 
+  // --- MDX表示関連 ---
+
   const FallbackComponent = () => (
     <div className="text-red-600">
-      MDX Content rendering failed. Check console log in server component.
+      MDXコンテンツのレンダリングに失敗しました。サーバーコンソールのログを確認してください。
     </div>
   );
 
-  const mdxError = mdxResult?.error;
-  const mdxFrontmatter = mdxResult?.frontmatter;
-
-  if (mdxError) {
-    // ... (既存のコードは変更なし)
+  if (mdxResult?.error) {
     return (
       <div className="text-red-500 p-4 border border-red-500 rounded-md">
         <h3>MDXコンテンツの表示エラー</h3>
-        <p>{mdxError.message || "不明なエラー"}</p>
+        <p>{mdxResult.error.message || "不明なエラー"}</p>
         <pre className="mt-2 text-xs whitespace-pre-wrap bg-red-50 p-2 rounded">
-          {mdxError.stack}
+          {mdxResult.error.stack}
         </pre>
       </div>
     );
@@ -176,24 +150,15 @@ export default function SavedPromptClient({
 
   return (
     <div className="space-y-6">
+      <Toaster richColors position="top-right" />
       {/* ヘッダー部分 */}
       <div className="flex items-center justify-between">
-        {/* ... (既存のコードは変更なし) */}
         <div>
-          <h1 className="text-3xl font-bold">
-            {displayFrontmatter.title ||
-              (mdxFrontmatter?.title as string) ||
-              "プロンプト"}
-          </h1>
+          <h1 className="text-3xl font-bold">{displayFrontmatter.title}</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             保存日:{" "}
-            {new Date(
-              (mdxFrontmatter?.createdAt as string) ||
-                displayFrontmatter.createdAt
-            ).toLocaleDateString()}{" "}
-            | 元テンプレートID:{" "}
-            {(mdxFrontmatter?.templateId as string) ||
-              displayFrontmatter.templateId}
+            {new Date(displayFrontmatter.createdAt).toLocaleDateString()} |
+            元テンプレートID: {displayFrontmatter.templateId}
           </p>
         </div>
       </div>
@@ -201,9 +166,7 @@ export default function SavedPromptClient({
       {/* メインコンテンツカード */}
       <Card className="rounded-xl border-0 shadow-sm overflow-hidden">
         <div className="bg-white dark:bg-zinc-950 p-6">
-          {/* プロンプト内容ヘッダーと星評価 */}
           <div className="flex items-center justify-between mb-4">
-            {/* アクションボタン群 */}
             <div className="flex items-center justify-end gap-2">
               <Button
                 variant="outline"
@@ -211,17 +174,21 @@ export default function SavedPromptClient({
                 onClick={handleCopyPrompt}
                 className="rounded-full"
               >
-                <Clipboard className="h-4 w-4 mr-2" />
-                コピー
+                {isCopied ? (
+                  <Check className="h-4 w-4 mr-2 text-green-500" />
+                ) : (
+                  <Clipboard className="h-4 w-4 mr-2" />
+                )}
+                {isCopied ? "コピー完了" : "コピー"}
               </Button>
 
-              {/* === ここからが追加部分 === */}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
                     variant="destructive"
                     size="sm"
                     className="rounded-full"
+                    disabled={isPending}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     削除
@@ -237,23 +204,21 @@ export default function SavedPromptClient({
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting}>
+                    <AlertDialogCancel disabled={isPending}>
                       キャンセル
                     </AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleDeletePrompt}
-                      disabled={isDeleting}
+                      disabled={isPending}
                       className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
                     >
-                      {isDeleting ? "削除中..." : "削除する"}
+                      {isPending ? "削除中..." : "削除する"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              {/* === ここまでが追加部分 === */}
             </div>
 
-            {/* 星評価 */}
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((starValue) => (
                 <Button
@@ -261,6 +226,7 @@ export default function SavedPromptClient({
                   variant="ghost"
                   size="icon"
                   onClick={() => handleRatingChange(starValue)}
+                  disabled={isPending}
                   className={cn(
                     "rounded-full h-7 w-7 p-0",
                     currentRating !== null && starValue <= currentRating
@@ -284,7 +250,6 @@ export default function SavedPromptClient({
             </div>
           </div>
 
-          {/* MDXコンテンツ表示エリア */}
           <div className="prose prose-zinc dark:prose-invert max-w-none bg-zinc-50 dark:bg-zinc-900 p-4 rounded-lg border border-zinc-100 dark:border-zinc-800 min-h-[200px]">
             <Suspense fallback={<FallbackComponent />}>
               {mdxResult.content}

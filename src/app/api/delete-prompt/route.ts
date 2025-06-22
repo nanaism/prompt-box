@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  if (process.env.VERCEL_ENV === "preview") {
+  if (process.env.IS_PREVIEW) {
     return NextResponse.json(
       {
         success: true,
@@ -31,12 +32,14 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error("プロンプトの削除中にエラーが発生しました:", error);
-      // エラーの種類によってレスポンスを分けることも可能
       return NextResponse.json(
         { success: false, message: "データベースエラーが発生しました。" },
         { status: 500 }
       );
     }
+
+    // ★★★ ここがキャッシュを無効化する心臓部 ★★★
+    revalidatePath("/saved");
 
     return NextResponse.json(
       { success: true, message: "プロンプトが正常に削除されました。" },

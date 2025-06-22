@@ -1,13 +1,10 @@
 import TemplateCard from "@/components/template-card";
 import { Button } from "@/components/ui/button";
-import { Card, CardFooter } from "@/components/ui/card";
 import { getTemplatesMetadata } from "@/lib/markdown/templates";
-import { Copy, Save } from "lucide-react";
 import Link from "next/link";
+import HeroPreviewCard from "./hero-preview-card"; // ★ 新しいコンポーネントをインポート
 
-// ★ 修正点1: コンポーネントを `async` 関数にする
 export default async function HomePage() {
-  // ★ 修正点2: await を使って Promise の結果（配列）を待つ
   const templates = await getTemplatesMetadata();
 
   return (
@@ -17,6 +14,7 @@ export default async function HomePage() {
         <div className="container mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
             <div className="space-y-6">
+              {/* ... 左側のテキスト部分は変更なし ... */}
               <div className="inline-block px-3 py-1 rounded-full bg-white/10 text-sm font-medium">
                 Prompt Manager
               </div>
@@ -50,73 +48,21 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* プレビューカード */}
+            {/* ★ 修正点: プレビューカードをコンポーネントに置き換え */}
             <div className="hidden lg:flex justify-end">
-              <Card className="w-[560px] rounded-xl pb-0 overflow-hidden border-0 shadow-xl bg-white">
-                <div className="p-6 pb-0 flex flex-col gap-4">
-                  <div className="text-sm font-medium text-violet-600 bg-violet-50 px-3 py-1 rounded-full w-fit">
-                    ブログ記事の作成依頼
-                  </div>
-                  <h3 className="text-xl font-semibold">
-                    <span className="text-violet-600">{"{topic}"}</span>
-                    についてのブログ記事を書いてください。
-                    <br />
-                    その際、以下のブログ記事作成ガイドに従って…
-                  </h3>
-                  <div className="bg-zinc-50 rounded-lg p-3 border border-zinc-100">
-                    <div className="text-xs text-zinc-500 mb-2">変数を入力</div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm font-medium">topic:</div>
-                        <div className="flex-1 bg-white rounded border border-zinc-200 px-2 py-1 text-sm">
-                          React
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm font-medium">url:</div>
-                        <div className="flex-1 bg-white rounded border border-zinc-200 px-2 py-1 text-sm">
-                          https://qiita.com/oga_aiichiro
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <CardFooter className="bg-violet-50 border-violet-100 pb-6 border-t">
-                  <div className="flex justify-between w-full">
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full flex gap-1 items-center"
-                      >
-                        <Copy className="h-4 w-4" />
-                        コピー
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full flex gap-1 items-center"
-                      >
-                        <Save className="h-4 w-4" />
-                        履歴に保存
-                      </Button>
-                    </div>
-                  </div>
-                </CardFooter>
-              </Card>
+              <HeroPreviewCard />
             </div>
           </div>
         </div>
       </section>
 
-      {/* テンプレート一覧セクション */}
+      {/* テンプレート一覧セクション (変更なし) */}
       <section id="templates" className="py-16 bg-zinc-50">
         <div className="container mx-auto">
           <h2 className="text-3xl font-bold mb-12">
             日々改善されていく、おすすめテンプレート集。
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* この部分はもうエラーにならないはず！ */}
             {templates.slice(0, 6).map((template) => (
               <TemplateCard key={template.id} template={template} />
             ))}

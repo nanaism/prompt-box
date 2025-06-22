@@ -1,5 +1,8 @@
+// src/app/api/save-prompt/route.ts
+
 import { createClient } from "@/lib/supabase/server";
 import matter from "gray-matter";
+import { revalidatePath } from "next/cache"; // ★ revalidatePathをインポート
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -17,11 +20,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // gray-matterでフロントマターと本文をパース
-    // dataが SavedPromptFrontmatter 型と互換性があることを期待
     const { data: frontmatter, content: mdxContent } = matter(content);
 
-    // ★ `templateId` が存在するかチェック
     if (!frontmatter.title || !frontmatter.templateId) {
       return NextResponse.json(
         { message: "Title and templateId in frontmatter are required" },
@@ -29,20 +29,31 @@ export async function POST(request: Request) {
       );
     }
 
-    // Supabaseのpromptsテーブルにデータを挿入
-    const { error } = await supabase.from("prompts").insert({
-      title: frontmatter.title,
-      created_at: frontmatter.createdAt || new Date().toISOString(),
-      rating: frontmatter.rating || null,
-      content: mdxContent,
-      // ★ `templateId` を `template_id` カラムに保存
-      template_id: frontmatter.templateId,
-    });
+    const { data: insertedData, error } = await supabase
+      .from("prompts")
+      .insert({
+        title: frontmatter.title,
+        created_at: frontmatter.createdAt || new Date().toISOString(),
+        rating: frontmatter.rating || null,
+        content: mdxContent,
+        template_id: frontmatter.templateId,
+      })
+      .select()
+      .single(); // ★ .select().single() を追加して挿入したデータを取得
 
     if (error) {
       console.error("Error saving prompt to Supabase:", error);
       throw error;
     }
+
+    // ★ --- ここからが重要な追加部分 --- ★
+    // 関連するページのキャッシュを無効化
+    revalidatePath("/saved"); // サイドバーを含むレイアウト
+    if (insertedData) {
+      // 新しく作られた詳細ページのキャッシュも無効化
+      revalidatePath(`/saved/${insertedData.id}`);
+    }
+    // ★ --- ここまで --- ★
 
     return NextResponse.json(
       { message: "Prompt saved successfully" },
