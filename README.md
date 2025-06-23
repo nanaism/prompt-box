@@ -1,36 +1,24 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
+![FireShot Webpage Capture 018 - 'Prompt Box - AIプロンプトテンプレート管理' - prompt aiichiro jp](https://github.com/user-attachments/assets/d1ea4641-5510-43df-a017-5e9bc7c62ab3)
 
-First, run the development server:
+# 必須機能
+- テンプレート一覧表示：
+- MDX ファイルから読み込んだテンプレートを一覧で表示する。
+- テンプレート詳細表示：
+- 個別テンプレートのタイトル、説明、テンプレート内容を表示する。
+- 動的プロンプト生成：
+- テンプレート内の変数をフォームで編集し、リアルタイムでプロンプトを生成する。
+- 生成したプロンプトの活用：
+- 生成したプロンプトをクリップボードにコピーできる。
+- 生成したプロンプトを保存し、評価できる機能を提供する。
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# ユーザーストーリー
+ - ユーザーがサイトにアクセスすると、カテゴリ別のテンプレート一覧が表示される。
+ - テンプレートカードをクリックすると、詳細ページに遷移する。
+ - テンプレート詳細ページでは、テンプレートの説明と変数入力フォームが表示される。
+ - 変数を入力すると、リアルタイムでプレビューが更新される。
+ - 「コピー」ボタンをクリックすると、生成されたプロンプトがクリップボードにコピーされる。
+ - 「保存」ボタンをクリックすると、生成したプロンプトが履歴に保存される。
+ - 保存したプロンプトに対して、効果を 1〜5 段階で評価できる。
+ - MDX を使用した About ページでは、React コンポーネントが埋め込まれ、インタラクティブな要素が表示される。
+ - アプリケーションがデプロイされており、誰でもアクセス可能である。
